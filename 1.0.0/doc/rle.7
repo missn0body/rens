@@ -1,0 +1,43 @@
+.TH rle 7 "May 2024" "Version 1.0.0"
+.SH NAME
+rle \- A simple run-length encoder/decoder
+.SH SYNOPSIS
+.B rle
+.B [-dv]
+.I <input file>
+.I [<output file>]
+.PP
+.B command-to-stdout | rle
+.B [-dv]
+.I [<output file>]
+.SH DESCRIPTION
+.B rle
+is a compressing utility using the run-length encoding/decoding algorithm to compress
+long runs of repeated data into a decimal number representing the length of the data, and a
+single instance of the given data. For example, data consisting of 'wwwwwwwwwwww' may
+be compressed as '9w3w' by this program.
+.PP
+.B rle
+can accept input from a file, from which it will scan line-by-line preserving control characters,
+or from stdin through a pipe. When not taking input from pipe, any non-option strings will be
+intepreted as first input file, then output file, with any other strings being ignored. If the
+program accepts input from a pipe, then
+.B rle
+will accept only one non-option string representing the output file. Writing to output files will
+not erase previous data on those files, instead appending new data.
+.PP
+.B rle
+is invokable through the terminal.
+.SH OPTIONS
+.IP "-d, --decode"
+Signals
+.B rle
+to decode the input file or stdin
+.IP "-v, --verbose"
+Signals
+.B rle
+to output diagnostic and verbose information
+.SH BUGS
+No known bugs.
+.SH AUTHORS
+Written by anson <thesearethethingswesaw@gmail.com>
