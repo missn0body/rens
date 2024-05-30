@@ -2,7 +2,7 @@
 
 Under construction!
 
-Usage and options can be read by invoking `rle --help` at the
+Usage and options can be read by invoking `rens --help` at the
 command line. This project is licensed under the MIT License, See 
 LICENSE for related details. Issues, bugs, and other things can be
 discussed at my E-Mail, <thesearethethingswesaw@gmail.com>
