@@ -34,6 +34,7 @@ int main(int argc, char *argv[])
 
 	// Flags that can be set with arguments
 	bool verbose = false, preview = false;
+	short suffix_width = 0;
 
 	// Command-line arguments parsing here...
 
@@ -52,11 +53,15 @@ int main(int argc, char *argv[])
 		// Attach filename that we got to end of path so we can stat
 		snprintf(fnindex + dirlen, bufsize, "%s", direntobj->d_name);
 
-		if(stat(fnindex, &statbuf) == -1) { perror(programname); continue; }
-		if(check_if_dir(&statbuf)) continue;
+		// The index will increment regardless if its a directory or not,
+		// so lets decrement to avoid gaps in numbers
+		if(stat(fnindex, &statbuf) == -1) { i--; perror(programname); continue; }
+		if(check_if_dir(&statbuf)) { i--; continue; }
 
-		// Purely debugging purposes
-		printf("%s\n", fnindex);
+		// A bunch of debugging prints
+		printf("realpath \"%s\", basename \"%s\", ", fnindex, direntobj->d_name);
+		if(i == 0) printf("renamed \"%s\"\n", 	  (pattern[0] == '\0') ? fnindex : pattern);
+		else	   printf("renamed \"%s%*ld\"\n", (pattern[0] == '\0') ? fnindex : pattern, suffix_width, i);
 	}
 
 	return 0;
