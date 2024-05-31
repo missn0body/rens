@@ -29,20 +29,22 @@ int main(int argc, char *argv[])
 
 	// And some important buffers
 	const char *programname = argv[0];
-	char dirname[bufsize] = {0}, pattern[bufsize] = {0};
+	char dirname[bufsize] = {0}, pattern[bufsize] = {0}, newname[bufsize] = {0};
 	char fnindex[bufsize - 1] = {0};
 
 	// Flags that can be set with arguments
-	bool verbose = false, preview = false;
+	bool verbose = false, preview = false, no_bailout = false, no_pattern = false;
 	short suffix_width = 0;
 
 	// Command-line arguments parsing here...
 
 	// If we did not get a directory name, just look inside current working directory
 	if(dirname[0] == '\0') 			     snprintf(dirname, bufsize, "%s", defdir);
+	if(pattern[0] == '\0')			     no_pattern = true;
+	if(suffix_width <= 1)			     suffix_width = 1;
 	if((dirobj = opendir(dirname)) == nullptr) { perror(programname); exit(EXIT_FAILURE); }
 	// Plus one for forwards slash
-	size_t dirlen = strlen(dirname) + 1;
+	size_t dirlen = strlen(dirname) + 1, ret = 0;
 
 	// Setting full directory path ahead of time instead of overwriting the same
 	// memory locations over and over again
@@ -51,17 +53,39 @@ int main(int argc, char *argv[])
 	for(size_t i = 0; (direntobj = readdir(dirobj)) != nullptr; i++)
 	{
 		// Attach filename that we got to end of path so we can stat
-		snprintf(fnindex + dirlen, bufsize, "%s", direntobj->d_name);
+		ret = snprintf(fnindex + dirlen, bufsize, "%s", direntobj->d_name);
+		if(ret >= bufsize - 1)
+		{
+			// If it seems that the full path is too big for our buffers, then either exit or warn
+			fprintf(stderr, "%s: fnindex (realpath of file) might be truncated, %s\n", programname, (no_bailout) ? "continuing..." :
+															       "bailing out...");
+			if(!no_bailout) exit(EXIT_FAILURE);
+		}
 
 		// The index will increment regardless if its a directory or not,
 		// so lets decrement to avoid gaps in numbers
 		if(stat(fnindex, &statbuf) == -1) { i--; perror(programname); continue; }
 		if(check_if_dir(&statbuf)) { i--; continue; }
 
+		// If pattern not specified, then just grab current filename
+		if(no_pattern) snprintf(pattern, bufsize, "%s", direntobj->d_name);
+
+		// Assemble the new name
+		if(i == 0) ret = snprintf(newname, bufsize, "%s", pattern);
+		else	   ret = snprintf(newname, bufsize, "%s%*ld", pattern, suffix_width, i);
+
+		if(ret >= bufsize - 1)
+		{
+			// If it seems that the new name is too big for our buffers, then either exit or warn
+			fprintf(stderr, "%s: newname might be truncated, %s\n", programname, (no_bailout) ? "continuing..." :
+													    "bailing out...");
+			if(!no_bailout) exit(EXIT_FAILURE);
+		}
+
 		// A bunch of debugging prints
-		printf("realpath \"%s\", basename \"%s\", ", fnindex, direntobj->d_name);
-		if(i == 0) printf("renamed \"%s\"\n", 	  (pattern[0] == '\0') ? fnindex : pattern);
-		else	   printf("renamed \"%s%*ld\"\n", (pattern[0] == '\0') ? fnindex : pattern, suffix_width, i);
+		printf("realpath\t%s\n", fnindex);
+		printf("basename\t%s\n", direntobj->d_name);
+		printf("renamed to\t%s\n", newname);
 	}
 
 	return 0;
