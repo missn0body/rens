@@ -9,10 +9,36 @@
 #include <sys/types.h>
 #include <dirent.h>
 
+/////////////////////////////////////////////////////////////////////////////////////////
+// Definitions
+/////////////////////////////////////////////////////////////////////////////////////////
+
+typedef char flag_t;
+static flag_t status = 0x00;
+enum : char
+{
+	VERBOSE = (1 << 0),
+	PREVIEW = (1 << 1),
+	NOBAIL = (1 << 2),
+	NOPAT = (1 << 3)
+};
+
 static const char *defdir = ".";
 static constexpr short bufsize = 256;
 
+/////////////////////////////////////////////////////////////////////////////////////////
+// Utility functions
+/////////////////////////////////////////////////////////////////////////////////////////
+
 inline bool check_if_dir(const struct stat *input) { return (S_ISDIR(input->st_mode)); }
+
+static inline void   set(flag_t *in, char what) { *in |=   what; }
+static inline void unset(flag_t *in, char what) { *in &= (~what); }
+static inline bool  test(flag_t *in, char what) { return ((*in & what) == 0); }
+
+/////////////////////////////////////////////////////////////////////////////////////////
+// main() function
+/////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char *argv[])
 {
@@ -32,19 +58,22 @@ int main(int argc, char *argv[])
 	char dirname[bufsize] = {0}, pattern[bufsize] = {0}, newname[bufsize] = {0};
 	char fnindex[bufsize - 1] = {0};
 
-	// Flags that can be set with arguments
-	bool verbose = false, preview = false, no_bailout = false, no_pattern = false;
+	// A number that can be set by arguments
 	short suffix_width = 0;
 
 	// Command-line arguments parsing here...
 
 	// If we did not get a directory name, just look inside current working directory
 	if(dirname[0] == '\0') 			     snprintf(dirname, bufsize, "%s", defdir);
-	if(pattern[0] == '\0')			     no_pattern = true;
+	if(pattern[0] == '\0')			     set(&status, VERBOSE);
 	if(suffix_width <= 1)			     suffix_width = 1;
 	if((dirobj = opendir(dirname)) == nullptr) { perror(programname); exit(EXIT_FAILURE); }
 	// Plus one for forwards slash
 	size_t dirlen = strlen(dirname) + 1, ret = 0;
+
+	// There's two checks for bailout, with two uses each, so it's more efficient
+	// to just refer to a single bool instead of complicating inline ternary ops
+	bool no_bail = test(&status, NOBAIL);
 
 	// Setting full directory path ahead of time instead of overwriting the same
 	// memory locations over and over again
@@ -57,9 +86,9 @@ int main(int argc, char *argv[])
 		if(ret >= bufsize - 1)
 		{
 			// If it seems that the full path is too big for our buffers, then either exit or warn
-			fprintf(stderr, "%s: fnindex (realpath of file) might be truncated, %s\n", programname, (no_bailout) ? "continuing..." :
-															       "bailing out...");
-			if(!no_bailout) exit(EXIT_FAILURE);
+			fprintf(stderr, "%s: fnindex (realpath of file) might be truncated, %s\n", programname, (no_bail) ? "continuing..." :
+															    "bailing out...");
+			if(!no_bail) exit(EXIT_FAILURE);
 		}
 
 		// The index will increment regardless if its a directory or not,
@@ -68,7 +97,7 @@ int main(int argc, char *argv[])
 		if(check_if_dir(&statbuf)) { i--; continue; }
 
 		// If pattern not specified, then just grab current filename
-		if(no_pattern) snprintf(pattern, bufsize, "%s", direntobj->d_name);
+		if(test(&status, NOPAT)) snprintf(pattern, bufsize, "%s", direntobj->d_name);
 
 		// Assemble the new name
 		if(i == 0) ret = snprintf(newname, bufsize, "%s", pattern);
@@ -77,9 +106,9 @@ int main(int argc, char *argv[])
 		if(ret >= bufsize - 1)
 		{
 			// If it seems that the new name is too big for our buffers, then either exit or warn
-			fprintf(stderr, "%s: newname might be truncated, %s\n", programname, (no_bailout) ? "continuing..." :
-													    "bailing out...");
-			if(!no_bailout) exit(EXIT_FAILURE);
+			fprintf(stderr, "%s: newname might be truncated, %s\n", programname, (no_bail) ? "continuing..." :
+												 	 "bailing out...");
+			if(!no_bail) exit(EXIT_FAILURE);
 		}
 
 		// A bunch of debugging prints
