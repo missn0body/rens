@@ -2,11 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 // POSIX libraries
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <dirent.h>
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -24,7 +22,8 @@ enum : char
 };
 
 static const char *defdir = ".";
-static constexpr short bufsize = 256;
+static constexpr short bufsize  = 256;
+static constexpr short defwidth = 3;
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // Utility functions
@@ -35,6 +34,10 @@ inline bool check_if_dir(const struct stat *input) { return (S_ISDIR(input->st_m
 static inline void   set(flag_t *in, char what) { *in |=   what; }
 static inline void unset(flag_t *in, char what) { *in &= (~what); }
 static inline bool  test(flag_t *in, char what) { return ((*in & what) == 0); }
+
+void usage(void) { printf("usage!\n"); return; }
+
+void version(void) { printf("version!\n"); return; }
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // main() function
@@ -62,11 +65,70 @@ int main(int argc, char *argv[])
 	short suffix_width = 0;
 
 	// Command-line arguments parsing here...
+	// TODO
+	int c;
+	while(--argc > 0 && (*++argv)[0] != '\0')
+	{
+		if((*argv)[0] != '-')
+		{
+			if(pattern[0] != '\0')
+			{
+				fprintf(stderr, "%s: discarded program input -- \"%s\"\n", programname, *argv);
+				continue;
+			}
+
+			strncpy((dirname[0] == '\0') ? dirname : pattern, *argv, (dirname[0] == '\0') ? sizeof(dirname) : sizeof(pattern));
+		}
+
+		if((*argv)[0] == '-')
+		{
+			// If there's another dash, then it's a long option.
+			// Move the pointer up 2 places and compare the word itself.
+			if((*argv)[1] == '-')
+			{
+				// Using continue statements here so that the user
+				// can use both single character and long options
+				// simultaniously, and the loop can test both.
+				if(strcmp((*argv) + 2, "help")    == 0) { usage();   exit(EXIT_SUCCESS); }
+				if(strcmp((*argv) + 2, "version") == 0) { version(); exit(EXIT_SUCCESS); }
+				if(strcmp((*argv) + 2, "width")   == 0)
+				{
+					suffix_width = atoi(*argv);
+					exit(EXIT_SUCCESS);
+				}
+				if(strcmp((*argv) + 2, "no-bail") == 0) { set(&status, NOBAIL);  exit(EXIT_SUCCESS); }
+				if(strcmp((*argv) + 2, "preview") == 0) { set(&status, PREVIEW); exit(EXIT_SUCCESS); }
+			}
+			while((c = *++argv[0]))
+			{
+				// Single character option testing here.
+				switch(c)
+				{
+					case 'h': usage(); exit(EXIT_SUCCESS);
+					case 'w':
+						  suffix_width = atoi(*argv);
+						  exit(EXIT_SUCCESS);
+						  break;
+
+					case 'n': set(&status, NOBAIL);  break;
+					case 'p': set(&status, PREVIEW); break;
+					// This error flag can either be set by a
+					// completely unrelated character inputted,
+					// or you managed to put -option instead of
+					// --option.
+					default : fprintf(stderr, "%s: unknown option -- \"%s\", try \"--help\"\n", programname, *argv);
+						  exit(EXIT_FAILURE);
+				}
+			}
+
+			continue;
+		}
+	}
 
 	// If we did not get a directory name, just look inside current working directory
 	if(dirname[0] == '\0') 			     snprintf(dirname, bufsize, "%s", defdir);
-	if(pattern[0] == '\0')			     set(&status, VERBOSE);
-	if(suffix_width <= 1)			     suffix_width = 1;
+	if(pattern[0] == '\0')			     set(&status, NOPAT);
+	if(suffix_width <= 1)			     suffix_width = defwidth;
 	if((dirobj = opendir(dirname)) == nullptr) { perror(programname); exit(EXIT_FAILURE); }
 	// Plus one for forwards slash
 	size_t dirlen = strlen(dirname) + 1, ret = 0;
@@ -119,3 +181,4 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
+
