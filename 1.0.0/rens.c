@@ -47,14 +47,14 @@ void usage(void)
 	printf("REName and Suffix (%s): big brother renames your files\n", VERSION);
 	printf("created by anson <thesearethethingswesaw@gmail.com>\n\n");
 	printf("usage:\n\trens (-h / --help)\n\trens --version\n");
-	printf("\trens [-npqvs] [<pattern>] [<directory>]\n");
-	printf("\trens [-npqvs] [-w <number>] [<pattern>] [<directory>]\n\n");
+	printf("\trens [-npqsv] [<pattern>] [<directory>]\n");
+	printf("\trens [-npqsv] [-w <number>] [<pattern>] [<directory>]\n\n");
 
 	printf("options:\n\t%18s\t%s\n","-n, --no-bail","if buffer overflow/truncation detected, do not stop on precaution, only on error");
 	printf("\t%18s\t%s\n", "-p, --preview",		"previews the operation verbosely, but does not actually operate. activates verbose");
 	printf("\t%18s\t%s\n", "-q, --quiet",		"does not print any status, verbose, or error messages. counters verbose");
-	printf("\t%18s\t%s\n", "-v, --verbose",		"prints verbose diagnostic information");
 	printf("\t%18s\t%s\n", "-s, --suffix-first",	"signals RENS to add a suffix to the initial file in directory");
+	printf("\t%18s\t%s\n", "-v, --verbose",		"prints verbose diagnostic information");
 	printf("\t%18s\t%s\n", "-w, --width",		"choose the number of digits to append to new filename, default is 3");
 	printf("\t%18s\t%s\n", "<number>",		"a decimal, non-negative number");
 	printf("\t%18s\t%s\n", "<pattern>",		"a non-REGEX string to rename all files in directory to, defaults to original filename");
@@ -253,8 +253,8 @@ int main(int argc, char *argv[])
 		if(test(&status, NOPAT)) snprintf(pattern, bufsize, "%s", direntobj->d_name);
 
 		// Assemble the new name
-		if(i == 0 && !test(&status, FIRSTSUF))  ret = snprintf(newname, bufsize, "%s", pattern);
-		else					ret = snprintf(newname, bufsize, "%s%0*ld", pattern, suffix_width, i);
+		if(i == 0 && !test(&status, FIRSTSUF))  ret = snprintf(newname, bufsize, "%s/%s", dirname, pattern);
+		else					ret = snprintf(newname, bufsize, "%s/%s%0*ld", dirname, pattern, suffix_width, i);
 
 		if(ret >= bufsize - 1)
 		{
@@ -271,6 +271,8 @@ int main(int argc, char *argv[])
 			printf("basename\t%s\n", direntobj->d_name);
 			printf("renamed to\t%s\n\n", newname);
 		}
+
+		if(!test(&status, PREVIEW)) rename(fnindex, newname);
 	}
 
 	return 0;

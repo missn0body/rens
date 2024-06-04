@@ -1,0 +1,47 @@
+.TH rens 7 "June 2024" "Version 1.0.0"
+.SH NAME
+rens \- REName and Suffix files
+.SH SYNOPSIS
+.B rens
+.B [-npqsv]
+.I [<pattern>]
+.I [<directory>]
+.PP
+.B rens
+.B [-npqsv]
+.B [-w <number>]
+.I [<pattern>]
+.I [<directory>]
+.SH DESCRIPTION
+.B rens
+renames all files in either the current folder, if not supplied a directory name, or
+any given directory supplied by the user. The "pattern" as supplied by the user is what
+all the files in that directory will be renamed to, with a numerical suffix appended to
+each filename to ensure uniqueness.
+.PP
+The default behavior of
+.B rens
+is to append a three digit number to the end of every file found in a directory after the
+first one found, in that the first file found is not suffixed. If not supplied with a pattern,
+.B rens
+will default to using the original filename, the only resulting change being a numerical
+suffix. This default behavior can be modified by using the flags below.
+.PP
+.B rens
+will not operate on directories
+.PP
+.B rens
+is invokable through the terminal.
+.SH OPTIONS
+.IP "-n, --no-bail"
+.IP "-p, --preview"
+.IP "-q, --quiet"
+.IP "-s, --suffix-first"
+.IP "-v, --verbose"
+Signals
+.B rens
+to output diagnostic and verbose information
+.SH BUGS
+No known bugs.
+.SH AUTHORS
+Written by anson <thesearethethingswesaw@gmail.com>
