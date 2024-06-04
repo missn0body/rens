@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
 // POSIX libraries
 #include <sys/stat.h>
@@ -11,6 +10,8 @@
 /////////////////////////////////////////////////////////////////////////////////////////
 // Definitions
 /////////////////////////////////////////////////////////////////////////////////////////
+
+static const char *VERSION = "1.0.0";
 
 typedef char flag_t;
 static flag_t status = 0x00;
@@ -34,13 +35,40 @@ static constexpr short defwidth = 3;
 
 inline bool check_if_dir(const struct stat *input) { return (S_ISDIR(input->st_mode)); }
 
-static inline void   set(flag_t *in, char what) { (*in) |=   what; }
+static inline void   set(flag_t *in, char what) { (*in) |=   what;  }
 static inline void unset(flag_t *in, char what) { (*in) &= (~what); }
 static inline bool  test(flag_t *in, char what) { return (((*in) & what) != 0); }
 
-void usage(void) { printf("usage!\n"); return; }
+static inline const char *boolstr(const bool what) 	 { return (what) ? "true" : "false"; }
+static inline const char  *bitstr(flag_t *in, char what) { return boolstr(test(in, what));   }
 
-void version(void) { printf("version!\n"); return; }
+void usage(void)
+{
+	printf("REName and Suffix (%s): big brother renames your files\n", VERSION);
+	printf("created by anson <thesearethethingswesaw@gmail.com>\n\n");
+	printf("usage:\n\trens (-h / --help)\n\trens --version\n");
+	printf("\trens [-npqvs] [<pattern>] [<directory>]\n");
+	printf("\trens [-npqvs] [-w <number>] [<pattern>] [<directory>]\n\n");
+
+	printf("options:\n\t%18s\t%s\n","-n, --no-bail","if buffer overflow/truncation detected, do not stop on precaution, only on error");
+	printf("\t%18s\t%s\n", "-p, --preview",		"previews the operation verbosely, but does not actually operate. activates verbose");
+	printf("\t%18s\t%s\n", "-q, --quiet",		"does not print any status, verbose, or error messages. counters verbose");
+	printf("\t%18s\t%s\n", "-v, --verbose",		"prints verbose diagnostic information");
+	printf("\t%18s\t%s\n", "-s, --suffix-first",	"signals RENS to add a suffix to the initial file in directory");
+	printf("\t%18s\t%s\n", "-w, --width",		"choose the number of digits to append to new filename, default is 3");
+	printf("\t%18s\t%s\n", "<number>",		"a decimal, non-negative number");
+	printf("\t%18s\t%s\n", "<pattern>",		"a non-REGEX string to rename all files in directory to, defaults to original filename");
+	printf("\t%18s\t%s\n", "<directory>",		"a directory to search through, defaults to \".\"\n");
+
+	printf("copyright (c) 2024, see LICENSE for related details\n");
+	return;
+}
+
+void version(void)
+{
+	printf("REName and Suffix (%s): big brother renames your files\n", VERSION);
+	return;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // main() function
@@ -68,11 +96,12 @@ int main(int argc, char *argv[])
 	short suffix_width = 0;
 
 	// Command-line arguments parsing here...
-	// TODO
 	int c;
 	while(--argc > 0 && (*++argv)[0] != '\0')
 	{
-		if((*argv)[0] != '-' && !isdigit(**argv))
+		// I didn't want to use another header for isdigit(), so this ugly thing
+		// will have to do
+		if((*argv)[0] != '-' && ((**argv - '0') >= 1 || (**argv - '0') <= 9))
 		{
 			if(dirname[0] != '\0')
 			{
@@ -80,7 +109,7 @@ int main(int argc, char *argv[])
 				continue;
 			}
 
-			strncpy((pattern[0] == '\0') ? pattern : dirname, *argv, (pattern[0] == '\0') ? sizeof(pattern) : sizeof(dirname));
+			snprintf((pattern[0] == '\0') ? pattern : dirname, bufsize, "%s", *argv);
 		}
 
 		if((*argv)[0] == '-')
@@ -106,7 +135,12 @@ int main(int argc, char *argv[])
 					continue;
 				}
 				if(strcmp((*argv) + 2, "no-bail") == 0) { set(&status, NOBAIL); continue; }
-				if(strcmp((*argv) + 2, "preview") == 0) { set(&status, PREVIEW); continue; }
+				if(strcmp((*argv) + 2, "preview") == 0)
+				{
+					set(&status, PREVIEW);
+					set(&status, VERBOSE);
+					continue;
+				}
 				if(strcmp((*argv) + 2, "verbose") == 0) { set(&status, VERBOSE); continue; }
 				if(strcmp((*argv) + 2, "suffix-first") == 0) { set(&status, FIRSTSUF); continue; }
 				if(strcmp((*argv) + 2, "quiet") == 0)
@@ -138,7 +172,11 @@ int main(int argc, char *argv[])
 						  break;
 
 					case 'n': set(&status, NOBAIL);  break;
-					case 'p': set(&status, PREVIEW); break;
+					case 'p':
+						  set(&status, PREVIEW);
+						  set(&status, VERBOSE);
+						  break;
+
 					case 'v': set(&status, VERBOSE); break;
 					case 's': set(&status, FIRSTSUF); break;
 					case 'q':
@@ -174,6 +212,8 @@ int main(int argc, char *argv[])
 	// There's two checks for bailout, with two uses each, so it's more efficient
 	// to just refer to a single bool instead of complicating inline ternary ops
 	bool no_bail = test(&status, NOBAIL);
+	// Same with the quiet flag
+	bool quiet = test(&status, QUIET);
 
 	// Verbose output
 	if(test(&status, VERBOSE))
@@ -181,10 +221,10 @@ int main(int argc, char *argv[])
 		printf("%s: dirname is %s\n", programname, dirname);
 		printf("%s: pattern is %s\n", programname, pattern);
 		printf("%s: suffix_width is %d\n", programname, suffix_width);
-		printf("%s: no_bail is %s\n", programname, (no_bail) ? "true" : "false");
-		printf("%s: no_pat is %s\n", programname, (test(&status, NOPAT)) ? "true" : "false");
-		printf("%s: preview is %s\n", programname, (test(&status, PREVIEW)) ? "true" : "false");
-		printf("%s: first suffix is %s\n", programname, (test(&status, FIRSTSUF)) ? "true" : "false");
+		printf("%s: no_bail is %s\n", programname, boolstr(no_bail));
+		printf("%s: no_pat is %s\n", programname, bitstr(&status, NOPAT));
+		printf("%s: preview is %s\n", programname, bitstr(&status, PREVIEW));
+		printf("%s: first suffix is %s\n", programname, bitstr(&status, FIRSTSUF));
 		putchar('\n');
 	}
 
@@ -199,8 +239,8 @@ int main(int argc, char *argv[])
 		if(ret >= bufsize - 1)
 		{
 			// If it seems that the full path is too big for our buffers, then either exit or warn
-			fprintf(stderr, "%s: fnindex (realpath of file) might be truncated, %s\n", programname, (no_bail) ? "continuing..." :
-															    "bailing out...");
+			if(!quiet) fprintf(stderr, "%s: fnindex (realpath of file) might be truncated, %s\n", programname, (no_bail) ?  "continuing..." :
+																	"bailing out...");
 			if(!no_bail) exit(EXIT_FAILURE);
 		}
 
@@ -213,14 +253,14 @@ int main(int argc, char *argv[])
 		if(test(&status, NOPAT)) snprintf(pattern, bufsize, "%s", direntobj->d_name);
 
 		// Assemble the new name
-		if(i == 0) ret = snprintf(newname, bufsize, "%s", pattern);
-		else	   ret = snprintf(newname, bufsize, "%s%0*ld", pattern, suffix_width, i);
+		if(i == 0 && !test(&status, FIRSTSUF))  ret = snprintf(newname, bufsize, "%s", pattern);
+		else					ret = snprintf(newname, bufsize, "%s%0*ld", pattern, suffix_width, i);
 
 		if(ret >= bufsize - 1)
 		{
 			// If it seems that the new name is too big for our buffers, then either exit or warn
-			fprintf(stderr, "%s: newname might be truncated, %s\n", programname, (no_bail) ? "continuing..." :
-												 	 "bailing out...");
+			if(!quiet) fprintf(stderr, "%s: newname might be truncated, %s\n", programname, (no_bail) ? "continuing..." :
+														    "bailing out...");
 			if(!no_bail) exit(EXIT_FAILURE);
 		}
 
