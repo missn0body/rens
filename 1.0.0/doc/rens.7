@@ -34,9 +34,25 @@ will not operate on directories
 is invokable through the terminal.
 .SH OPTIONS
 .IP "-n, --no-bail"
+If there is a possibility that paths may exceed
+.B rens
+internal buffers, do not preemptively exit like usual
 .IP "-p, --preview"
+Do not actually operate on files, but rather print
+verbose information as if using the
+.I -v
+switch
 .IP "-q, --quiet"
+Do not print any status or error messages, leave
+stdout and stderr be
 .IP "-s, --suffix-first"
+Add a suffix to the initial file found in a directory, such as '000',
+where normally
+.B rens
+would leave it be
+.IP "-w, --width"
+Specifies the number of digits that should be appended to the end
+of filenames
 .IP "-v, --verbose"
 Signals
 .B rens
